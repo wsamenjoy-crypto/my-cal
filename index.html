@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>الحاسبة الذكية المتطورة</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --primary: #38bdf8;
+            --text: #f1f5f9;
+            --accent: #10b981;
+            --danger: #f43f5e;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* نمنع تمرير الصفحة كاملة لتجنب القفزات */
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        /* منطقة المتغيرات - أضفنا تمرير ناعم */
+        .vars-scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding-bottom: 50px; /* مساحة إضافية لتسهيل التمرير */
+            scroll-behavior: smooth;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid #334155;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        /* تمييز الحقل النشط لتعرف أين تكتب */
+        .card.active-card {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+            transform: scale(1.02);
+        }
+
+        .var-row { display: flex; align-items: center; gap: 8px; }
+
+        .var-label {
+            background: var(--primary);
+            color: var(--bg);
+            width: 35px; height: 35px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 6px; font-weight: bold; flex-shrink: 0;
+        }
+
+        .input-field {
+            flex: 1; min-width: 0; height: 45px;
+            background: #0f172a; color: white;
+            border: 1px solid #334155; border-radius: 6px;
+            text-align: center; direction: ltr; font-size: 18px; outline: none;
+        }
+
+        /* منطقة الحساب والنتيجة */
+        .fixed-calculation-area {
+            flex-shrink: 0;
+            background: var(--card);
+            border-radius: 16px;
+            padding: 15px;
+            border-top: 3px solid var(--primary);
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.3);
+        }
+
+        .result-box {
+            background: rgba(0,0,0,0.5);
+            padding: 15px; border-radius: 10px;
+            text-align: center; margin-top: 10px;
+            border: 1px solid var(--primary);
+        }
+
+        .result-val {
+            font-size: 28px; font-weight: bold;
+            color: var(--primary); display: block;
+            direction: ltr; unicode-bidi: plaintext;
+        }
+
+        /* لوحة الأزرار */
+        .keypad {
+            flex-shrink: 0;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px; padding: 10px 0;
+        }
+
+        .btn {
+            height: 50px; border: none; border-radius: 10px;
+            font-size: 16px; font-weight: bold;
+            background: #334155; color: white; cursor: pointer;
+        }
+
+        .btn:active { background: var(--primary); color: var(--bg); }
+        .btn-op { color: var(--primary); border: 1px solid rgba(56, 189, 248, 0.2); }
+        .btn-del { background: var(--danger); }
+        
+        .btn-add {
+            background: var(--accent); color: white;
+            padding: 12px; border: none; border-radius: 10px;
+            width: 100%; margin-bottom: 10px; font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <button class="btn-add" onclick="addVar()">+ إضافة متغير جديد</button>
+    
+    <div id="varsArea" class="vars-scroll-area"></div>
+
+    <div class="fixed-calculation-area" id="mainAreaCard">
+        <input type="text" id="mainEq" class="input-field" style="width:100%" 
+               placeholder="المسألة النهائية..." 
+               onfocus="handleFocus(this)" oninput="run()">
+        <div class="result-box">
+            <span id="resText" class="result-val">0</span>
+        </div>
+    </div>
+
+    <div class="keypad">
+        <button class="btn btn-op" onclick="tap('+')">+</button>
+        <button class="btn btn-op" onclick="tap('-')">−</button>
+        <button class="btn btn-op" onclick="tap('*')">×</button>
+        <button class="btn btn-op" onclick="tap('/')">÷</button>
+        <button class="btn btn-op" onclick="tap('^')">^</button>
+        <button class="btn" onclick="tap('sin(')">sin</button>
+        <button class="btn" onclick="tap('cos(')">cos</button>
+        <button class="btn" onclick="tap('log(')">log</button>
+        <button class="btn" onclick="tap('ln(')">ln</button>
+        <button class="btn" onclick="tap('sqrt(')">√</button>
+        <button class="btn" onclick="tap('(')">(</button>
+        <button class="btn" onclick="tap(')')">)</button>
+        <button class="btn" onclick="tap('pi')">π</button>
+        <button class="btn" onclick="tap('e')">e</button>
+        <button class="btn btn-del" onclick="clr()">C</button>
+    </div>
+</div>
+
+<script>
+    let vars = JSON.parse(localStorage.getItem('v6_vars')) || [];
+    let focusedEl = null;
+
+    // وظيفة التركيز الذكي
+    function handleFocus(el) {
+        focusedEl = el;
+        
+        // إزالة التميز من الكروت الأخرى
+        document.querySelectorAll('.card').forEach(c => c.classList.remove('active-card'));
+        document.getElementById('mainAreaCard').classList.remove('active-card');
+
+        // تمييز الكرت الحالي
+        const parentCard = el.closest('.card') || document.getElementById('mainAreaCard');
+        parentCard.classList.add('active-card');
+
+        // التمرير التلقائي ليكون الحقل في المنتصف العلوي للشاشة
+        setTimeout(() => {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+    }
+
+    function addVar() {
+        const name = prompt("رمز المتغير:");
+        if (name && !vars.find(v => v.name === name)) {
+            vars.push({ name, expr: "0" });
+            render();
+        }
+    }
+
+    function render() {
+        const area = document.getElementById('varsArea');
+        area.innerHTML = vars.map((v, i) => `
+            <div class="card">
+                <div class="var-row">
+                    <div class="var-label">${v.name}</div>
+                    <input type="text" class="input-field v-inp" value="${v.expr}" 
+                           onfocus="handleFocus(this)" oninput="update(${i}, this.value)">
+                    <div onclick="remove(${i})" style="color:var(--danger); padding:10px; cursor:pointer;">✕</div>
+                </div>
+            </div>
+        `).join('');
+        run();
+    }
+
+    function update(i, val) {
+        vars[i].expr = val;
+        run();
+    }
+
+    function remove(i) {
+        vars.splice(i, 1);
+        render();
+    }
+
+    function tap(s) {
+        const el = focusedEl || document.getElementById('mainEq');
+        const start = el.selectionStart;
+        el.value = el.value.substring(0, start) + s + el.value.substring(el.selectionEnd);
+        el.focus();
+        el.setSelectionRange(start + s.length, start + s.length);
+        
+        if (el.classList.contains('v-inp')) {
+            const idx = Array.from(document.querySelectorAll('.v-inp')).indexOf(el);
+            if (idx !== -1) vars[idx].expr = el.value;
+        }
+        run();
+        // إعادة التمرير للتأكيد بعد الإدخال
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function clr() {
+        const el = focusedEl || document.getElementById('mainEq');
+        el.value = "";
+        if (el.classList.contains('v-inp')) {
+            const idx = Array.from(document.querySelectorAll('.v-inp')).indexOf(el);
+            if (idx !== -1) vars[idx].expr = "";
+        }
+        run();
+    }
+
+    function run() {
+        const eqn = document.getElementById('mainEq').value;
+        localStorage.setItem('v6_vars', JSON.stringify(vars));
+        localStorage.setItem('v6_eqn', eqn);
+
+        const scope = {};
+        try {
+            vars.forEach(v => {
+                scope[v.name] = v.expr.trim() === "" ? 0 : math.evaluate(v.expr);
+            });
+            if(!eqn.trim()) {
+                document.getElementById('resText').innerText = "0";
+                return;
+            }
+            const res = math.evaluate(eqn, scope);
+            document.getElementById('resText').innerText = math.format(res, {precision: 10});
+        } catch (e) {
+            document.getElementById('resText').innerText = "---";
+        }
+    }
+
+    window.onload = () => {
+        render();
+        document.getElementById('mainEq').value = localStorage.getItem('v6_eqn') || "";
+        focusedEl = document.getElementById('mainEq');
+        run();
+    };
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+<link rel="manifest" href="manifest.json">
+</body>
+</html>

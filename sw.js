@@ -1,4 +1,4 @@
-const CACHE_NAME = 'calc-v1';
+const CACHE_NAME = 'calc-v2';
 const ASSETS = [
   'index.html',
   'manifest.json',
@@ -13,4 +13,5 @@ self.addEventListener('install', (e) => {
 // جلب الملفات من التخزين المؤقت عند غياب الإنترنت
 self.addEventListener('fetch', (e) => {
   e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
+
 });
